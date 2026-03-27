@@ -1,0 +1,89 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id           Int           @id @default(autoincrement())
+  name         String
+  email        String        @unique
+  logoUrl      String?
+  createdAt    DateTime      @default(now())
+  subscription Subscription?
+  users        User[]
+  patients     Patient[]
+}
+
+model Subscription {
+  id        Int       @id @default(autoincrement())
+  tenantId  Int       @unique
+  tier      Tier      @default(STARTER)
+  status    SubStatus @default(TRIAL)
+  createdAt DateTime  @default(now())
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+}
+
+enum Tier {
+  STARTER    // up to 100 patients
+  BASIC      // up to 500 patients
+  PRO        // up to 1000 patients
+  ENTERPRISE // up to 5000 patients
+}
+
+enum SubStatus {
+  ACTIVE
+  INACTIVE
+  TRIAL
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int
+  email     String
+  password  String
+  name      String
+  role      Role     @default(MEDIC)
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, email])
+}
+
+enum Role {
+  ADMIN
+  FRONT_DESK
+  MEDIC
+}
+
+model Patient {
+  id          Int          @id @default(autoincrement())
+  tenantId    Int
+  name        String
+  dob         String?
+  gender      String?
+  phone       String?
+  email       String?
+  address     String?
+  insured     String?
+  createdAt   DateTime     @default(now())
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  testResults TestResult[]
+}
+
+model TestResult {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int
+  patientId Int
+  category  String
+  date      String?
+  status    String   @default("pending")
+  notes     String?
+  data      String?
+  createdAt DateTime @default(now())
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
